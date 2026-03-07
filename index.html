@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahan Stiker Anomali</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400&display=swap');
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .input-panel {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #000;
+            color: #fff;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-save {
+            background: #25d366; /* Warna hijau khas tombol download/wa */
+            color: #fff;
+        }
+
+        /* AREA RENDER (Tersembunyi) */
+        #capture-area {
+            background: white;
+            width: 600px;
+            height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px;
+            box-sizing: border-box;
+        }
+
+        #text-output {
+            color: black;
+            font-family: 'Roboto Condensed', sans-serif;
+            font-size: 120px;
+            line-height: 1.0;
+            text-align: left;
+            text-transform: lowercase;
+            word-spacing: 60px;
+            white-space: pre-wrap;
+            width: 100%;
+        }
+
+        /* AREA HASIL AKHIR */
+        #preview-container {
+            display: none;
+            text-align: center;
+            width: 100%;
+        }
+
+        #final-image {
+            max-width: 90%;
+            height: auto;
+            border-radius: 10px;
+            border: 2px solid #333;
+            margin-bottom: 15px;
+            -webkit-touch-callout: default; 
+        }
+
+        .instruction {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-panel" class="input-panel">
+        <h2 style="margin-top:0">Buat Bahan Stiker</h2>
+        <input type="text" id="textInput" placeholder="contoh: kan kan, bener kan">
+        <button class="btn" onclick="generateImage()">Buat Sekarang</button>
+    </div>
+
+    <div style="position: absolute; left: -9999px; top: 0;">
+        <div id="capture-area">
+            <div id="text-output"></div>
+        </div>
+    </div>
+
+    <div id="preview-container">
+        <h3>Hasil Foto</h3>
+        <p class="instruction">Klik tombol di bawah atau tekan lama gambar untuk simpan</p>
+        
+        <img id="final-image" alt="Hasil Stiker">
+
+        <div style="width: 90%; max-width: 400px; margin: 0 auto;">
+            <button class="btn btn-save" onclick="downloadImage()">Simpan ke Galeri</button>
+            <p onclick="location.reload()" style="cursor:pointer; color: #00d2ff; margin-top:20px;">← Buat Teks Lain</p>
+        </div>
+    </div>
+
+    <script>
+        function generateImage() {
+            const inputVal = document.getElementById('textInput').value;
+            if(!inputVal) return alert("Ketik teks dulu ya!");
+
+            const output = document.getElementById('text-output');
+            output.innerText = inputVal;
+
+            const btn = document.querySelector('.btn');
+            btn.innerText = "Sabar, lagi diproses...";
+            btn.disabled = true;
+
+            setTimeout(() => {
+                html2canvas(document.getElementById('capture-area'), {
+                    scale: 2,
+                    logging: false,
+                    useCORS: true
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const finalImg = document.getElementById('final-image');
+                    finalImg.src = imgData;
+
+                    document.getElementById('setup-panel').style.display = 'none';
+                    document.getElementById('preview-container').style.display = 'block';
+                });
+            }, 500);
+        }
+
+        function downloadImage() {
+            const finalImg = document.getElementById('final-image').src;
+            if(!finalImg) return;
+
+            // Membuat link download sementara
+            const link = document.createElement('a');
+            const timestamp = new Date().getTime();
+            link.download = `stiker-anomali-${timestamp}.png`;
+            link.href = finalImg;
+            
+            // Trigger klik untuk download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
