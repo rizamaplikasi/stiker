@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kalkulator iOS & Dashboard Privat</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            outline: none;
+        }
+
+        input, textarea {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+        }
+
+        body {
+            background-color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* --- TAMPILAN KALKULATOR --- */
+        .calculator-view {
+            width: 100%;
+            max-width: 420px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin: 0 auto;
+            height: 100vh;
+        }
+
+        .display { color: #ffffff; font-size: 72px; font-weight: 300; text-align: right; padding: 10px; margin-bottom: 10px; overflow: hidden; white-space: nowrap; letter-spacing: -1px; width: 100%; }
+        .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
+        .buttons button { width: 100%; height: calc((100vw - 68px) / 4); max-height: 85px; border-radius: 50%; border: none; font-size: 28px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: filter 0.1s; }
+        .buttons button:active { filter: brightness(1.4); }
+        .btn-light-grey { background-color: #a5a5a5; color: #000000; font-size: 26px; }
+        .btn-dark-grey { background-color: #333333; color: #ffffff; }
+        .btn-orange { background-color: #ff9f0a; color: #ffffff; font-size: 34px; }
+        .btn-orange.active-op { background-color: #ffffff; color: #ff9f0a; }
+        .btn-zero { grid-column: span 2; border-radius: 100px !important; justify-content: flex-start !important; padding-left: 28px !important; }
+
+        /* --- TAMPILAN LOGIN RAHASIA --- */
+        .login-view {
+            display: none; width: 100%; max-width: 420px; height: 100vh; background-color: #000000; flex-direction: column; justify-content: center; align-items: center; padding: 24px; margin: 0 auto; position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+        }
+        .login-view h2 { color: #ffffff; font-weight: 400; margin-bottom: 24px; }
+        .input-group { width: 100%; margin-bottom: 12px; }
+        .input-group input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background-color: #1c1c1e; color: white; font-size: 16px; }
+        .btn-login { width: 100%; padding: 14px; border-radius: 10px; border: none; background-color: #0a84ff; color: white; font-size: 16px; font-weight: 600; margin-top: 10px; cursor: pointer; }
+        .btn-cancel { background: none; border: none; color: #ff9f0a; font-size: 15px; margin-top: 20px; cursor: pointer; }
+
+        /* --- DASHBOARD PRIVAT & TOMBOL MENGAPUNG --- */
+        .dashboard-view {
+            display: none; width: 100%; max-width: 420px; height: 100vh; background-color: #111b21; flex-direction: column; position: absolute; top: 0; left: 0; right: 0; z-index: 10; color: #e9edef; padding: 20px; overflow-y: auto; margin: 0 auto;
+        }
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #222d34; padding-bottom: 12px; }
+        .dash-header h3 { font-size: 18px; font-weight: 500; color: #00a884; }
+        .btn-logout { background: #ff453a; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+
+        .form-panel { background-color: #202c33; padding: 16px; border-radius: 12px; margin-bottom: 20px; }
+        .form-panel label { display: block; font-size: 13px; color: #8696a0; margin-bottom: 6px; }
+        .form-panel input, .form-panel select, .form-panel textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2a3942; background-color: #2a3942; color: white; font-size: 14px; margin-bottom: 12px; outline: none; }
+        .form-panel textarea { resize: none; height: 80px; }
+        .btn-blast { width: 100%; padding: 14px; background-color: #00a884; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-blast:active { background-color: #008f6f; }
+
+        /* Floating Action Button (Tombol Mengapung) */
+        .fab-btn {
+            position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background-color: #00a884; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,168,132,0.4); cursor: pointer; z-index: 99; transition: transform 0.2s;
+        }
+        .fab-btn:active { transform: scale(0.92); }
+
+        /* Modal Panel Mengapung */
+        .modal-fab { display: none; background-color: #202c33; border-radius: 16px; padding: 16px; margin-top: 10px; border: 1px solid #2a3942; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <!-- Container Utama Kalkulator -->
+    <div class="calculator-view" id="calculatorView">
+        <div class="display" id="display">0</div>
+        
+        <div class="buttons">
+            <button class="btn-light-grey" id="clearBtn" onclick="clearAll()">AC</button>
+            <button class="btn-light-grey" onclick="toggleSign()">+/-</button>
+            <button class="btn-light-grey" onclick="calculatePercentage()">%</button>
+            <button class="btn-orange operator" data-action="/" onclick="setOperation('/')">÷</button>
+            
+            <button class="btn-dark-grey" onclick="appendNumber('7')">7</button>
+            <button class="btn-dark-grey" onclick="appendNumber('8')">8</button>
+            <button class="btn-dark-grey" onclick="appendNumber('9')">9</button>
+            <button class="btn-orange operator" data-action="*" onclick="setOperation('*')">×</button>
+            
+            <button class="btn-dark-grey" onclick="appendNumber('4')">4</button>
+            <button class="btn-dark-grey" onclick="appendNumber('5')">5</button>
+            <button class="btn-dark-grey" onclick="appendNumber('6')">6</button>
+            <button class="btn-orange operator" data-action="-" onclick="setOperation('-')">−</button>
+            
+            <button class="btn-dark-grey" onclick="appendNumber('1')">1</button>
+            <button class="btn-dark-grey" onclick="appendNumber('2')">2</button>
+            <button class="btn-dark-grey" onclick="appendNumber('3')">3</button>
+            <button class="btn-orange operator" data-action="+" onclick="setOperation('+')">+</button>
+            
+            <button class="btn-dark-grey btn-zero" onclick="appendNumber('0')">0</button>
+            <button class="btn-dark-grey" onclick="appendNumber('.')">,</button>
+            <button class="btn-orange" onclick="calculateResult()">=</button>
+        </div>
+    </div>
+
+    <!-- Halaman Login Rahasia -->
+    <div class="login-view" id="loginView">
+        <h2>Authentication</h2>
+        <div class="input-group">
+            <input type="text" id="username" placeholder="Username" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Password">
+        </div>
+        <button class="btn-login" onclick="verifyLogin()">Masuk</button>
+        <button class="btn-cancel" onclick="closeSecretRoom()">Kembali ke Kalkulator</button>
+    </div>
+
+    <!-- Dashboard Panel Privat (Ganti WA Web agar fitur Tombol Mengapung bisa jalan) -->
+    <div class="dashboard-view" id="dashboardView">
+        <div class="dash-header">
+            <h3>WhatsApp Panel Privat</h3>
+            <button class="btn-logout" onclick="logoutDashboard()">Keluar</button>
+        </div>
+
+        <div class="form-panel">
+            <label>Nomor Tujuan (Contoh: 628123456789)</label>
+            <input type="text" id="targetPhone" placeholder="Masukkan nomor HP tujuan">
+
+            <label>Isi Pesan</label>
+            <textarea id="targetMessage" placeholder="Tulis pesan yang ingin dikirim..."></textarea>
+
+            <label>Jumlah Pengiriman (Pesan Massal)</label>
+            <select id="jumlahPesan">
+                <option value="5">5 Pesan</option>
+                <option value="10">10 Pesan</option>
+                <option value="20">20 Pesan</option>
+                <option value="30">30 Pesan</option>
+                <option value="50">50 Pesan</option>
+            </select>
+
+            <button class="btn-blast" onclick="kirimPesanMassal()">Kirim Pesan Sekarang</button>
+        </div>
+
+        <div id="statusKirim" style="font-size: 13px; color: #00a884; text-align: center; margin-top: 10px;"></div>
+
+        <!-- Tombol Mengapung (FAB) -->
+        <div class="fab-btn" onclick="toggleFabMenu()" title="Menu Cepat">💬</div>
+        
+        <div class="modal-fab" id="modalFab">
+            <label style="color:#00a884; font-weight:600; margin-bottom:8px; display:block;">Pintasan Cepat Mengapung</label>
+            <p style="font-size:12px; color:#8696a0; margin-bottom:10px;">Gunakan tombol ini untuk mengirim pesan cepat instan ke target terakhir.</p>
+            <button class="btn-blast" style="padding: 10px; font-size: 13px;" onclick="kirimPesanCepat()">Kirim 20/30 Pesan Cepat</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnO4RRw9Yy6qKDN98T-VgM8P4_IuA6zIs",
+            authDomain: "chat-fathur-2026.firebaseapp.com",
+            projectId: "chat-fathur-2026",
+            databaseURL: "https://chat-fathur-2026-default-rtdb.firebaseio.com"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let daftarAkunDB = {};
+
+        db.ref('daftar_akun').on('value', (snapshot) => {
+            daftarAkunDB = snapshot.val() || {};
+        });
+
+        let currentOperand = '0';
+        let previousOperand = '';
+        let operation = undefined;
+        let shouldResetScreen = false;
+        let expressionHistory = '';
+
+        const display = document.getElementById('display');
+        const clearBtn = document.getElementById('clearBtn');
+        const operatorButtons = document.querySelectorAll('.operator');
+        const calcView = document.getElementById('calculatorView');
+        const loginView = document.getElementById('loginView');
+        const dashboardView = document.getElementById('dashboardView');
+
+        function updateDisplay() {
+            let formattedNumber = currentOperand;
+            if (!currentOperand.includes('e') && currentOperand !== 'Error') {
+                const parts = currentOperand.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                formattedNumber = parts.join(',');
+            }
+            display.innerText = formattedNumber;
+
+            if (formattedNumber.length > 9) { display.style.fontSize = '40px'; } 
+            else if (formattedNumber.length > 6) { display.style.fontSize = '55px'; } 
+            else { display.style.fontSize = '72px'; }
+
+            if (currentOperand !== '0' || previousOperand !== '') { clearBtn.innerText = 'C'; } 
+            else { clearBtn.innerText = 'AC'; }
+        }
+
+        function appendNumber(number) {
+            removeActiveOperator();
+            if (number === '.' && currentOperand.includes('.')) return;
+            
+            if (currentOperand === '0' && number !== '.') { 
+                currentOperand = number; 
+            } else if (shouldResetScreen) { 
+                currentOperand = number === '.' ? '0.' : number; 
+                shouldResetScreen = false; 
+            } else { 
+                if (currentOperand.replace('.', '').length < 9) { 
+                    currentOperand = currentOperand.toString() + number.toString(); 
+                } 
+            }
+            expressionHistory += number;
+            updateDisplay();
+        }
+
+        function setOperation(op) {
+            if (currentOperand === '') return;
+            let symbolMap = { '+': '+', '-': '-', '*': '*', '/': '/' };
+            expressionHistory += symbolMap[op] || op;
+
+            if (previousOperand !== '' && !shouldResetScreen) { calculateResult(); }
+            
+            operation = op;
+            previousOperand = currentOperand;
+            shouldResetScreen = true;
+
+            removeActiveOperator();
+            const activeBtn = document.querySelector(`[data-action="${op}"]`);
+            if (activeBtn) activeBtn.classList.add('active-op');
+        }
+
+        function removeActiveOperator() { operatorButtons.forEach(btn => btn.classList.remove('active-op')); }
+
+        function calculateResult() {
+            let cleanExpression = expressionHistory.replace(/\s+/g, '');
+            let isMatch = false;
+
+            for (let key in daftarAkunDB) {
+                let akun = daftarAkunDB[key];
+                if (akun.rumus && akun.rumus.replace(/\s+/g, '') === cleanExpression) {
+                    isMatch = true;
+                    break;
+                }
+            }
+
+            if (isMatch) {
+                openSecretRoom();
+                expressionHistory = '';
+                return;
+            }
+
+            let computation;
+            const prev = parseFloat(previousOperand);
+            const current = parseFloat(currentOperand);
+            if (isNaN(prev) || isNaN(current)) return;
+            
+            switch (operation) {
+                case '+': computation = prev + current; break;
+                case '-': computation = prev - current; break;
+                case '*': computation = prev * current; break;
+                case '/':
+                    if (current === 0) { currentOperand = 'Error'; operation = undefined; previousOperand = ''; updateDisplay(); return; }
+                    computation = prev / current; break;
+                default: return;
+            }
+            
+            computation = Math.round(computation * 100000000) / 100000000;
+            currentOperand = computation.toString();
+            operation = undefined;
+            previousOperand = '';
+            shouldResetScreen = true;
+            expressionHistory = currentOperand;
+            removeActiveOperator();
+            updateDisplay();
+        }
+
+        function clearAll() {
+            currentOperand = '0'; previousOperand = ''; operation = undefined;
+            expressionHistory = '';
+            removeActiveOperator(); updateDisplay();
+        }
+
+        function toggleSign() {
+            if (currentOperand === '0' || currentOperand === 'Error') return;
+            currentOperand = (parseFloat(currentOperand) * -1).toString(); 
+            expressionHistory = currentOperand;
+            updateDisplay();
+        }
+
+        function calculatePercentage() {
+            if (currentOperand === '0' || currentOperand === 'Error') return;
+            currentOperand = (parseFloat(currentOperand) / 100).toString(); 
+            expressionHistory = currentOperand;
+            updateDisplay();
+        }
+
+        function openSecretRoom() {
+            calcView.style.display = 'none';
+            loginView.style.display = 'flex';
+            clearAll(); 
+        }
+
+        function closeSecretRoom() {
+            loginView.style.display = 'none';
+            calcView.style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function verifyLogin() {
+            const userVal = document.getElementById('username').value.trim();
+            const passVal = document.getElementById('password').value.trim();
+            let loginValid = false;
+
+            for (let key in daftarAkunDB) {
+                let akun = daftarAkunDB[key];
+                if (akun.user === userVal && akun.pass === passVal) {
+                    loginValid = true;
+                    break;
+                }
+            }
+
+            if (loginValid) {
+                loginView.style.display = 'none';
+                dashboardView.style.display = 'flex';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+            } else {
+                alert("Username atau Password tidak valid.");
+            }
+        }
+
+        function logoutDashboard() {
+            dashboardView.style.display = 'none';
+            calcView.style.display = 'flex';
+        }
+
+        // --- Fungsionalitas Tombol Mengapung & Pesan Massal ---
+        function toggleFabMenu() {
+            const modal = document.getElementById('modalFab');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function kirimPesanMassal() {
+            const phone = document.getElementById('targetPhone').value.trim();
+            const message = document.getElementById('targetMessage').value.trim();
+            const count = parseInt(document.getElementById('jumlahPesan').value);
+            const status = document.getElementById('statusKirim');
+
+            if (!phone || !message) {
+                alert("Harap isi nomor tujuan dan pesan terlebih dahulu!");
+                return;
+            }
+
+            status.innerText = `Menyiapkan ${count} pesan untuk dikirim...`;
+
+            // Menggunakan API WhatsApp Click-to-Chat secara berurutan
+            let i = 0;
+            function sendNext() {
+                if (i < count) {
+                    i++;
+                    status.innerText = `Mengirim pesan ke-${i} dari ${count}...`;
+                    let url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message + " (" + i + ")")}`;
+                    window.open(url, '_blank');
+                    setTimeout(sendNext, 1500); // Jeda 1.5 detik per pesan
+                } else {
+                    status.innerText = `Selesai! ${count} tautan pesan telah diproses.`;
+                }
+            }
+            sendNext();
+        }
+
+        function kirimPesanCepat() {
+            const phone = document.getElementById('targetPhone').value.trim();
+            const message = document.getElementById('targetMessage').value.trim() || "Halo, pesan otomatis.";
+            
+            if (!phone) {
+                alert("Isi nomor tujuan terlebih dahulu di form atas!");
+                return;
+            }
+
+            // Default cepat 20 pesan
+            let count = 20;
+            let i = 0;
+            function sendFast() {
+                if (i < count) {
+                    i++;
+                    let url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message + " [Pasti_" + i + "]")}`;
+                    window.open(url, '_blank');
+                    setTimeout(sendFast, 1200);
+                }
+            }
+            sendFast();
+            toggleFabMenu();
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
